@@ -4,19 +4,35 @@ import customtkinter
 from lexico import analizar_lexico, reset_lines
 from sintactico import analizar_sintactico
 from translate import translate_to_python, translate_ast
+from optimizacion import optimize_ast
 import io
 import sys
+from PIL import Image, ImageTk
 
-customtkinter.set_appearance_mode("dark")
-customtkinter.set_default_color_theme("blue")
+customtkinter.set_appearance_mode("Dark") 
+customtkinter.set_default_color_theme("green")  
 
 
 class App(customtkinter.CTk):
     def __init__(self):
         super().__init__()
 
-        self.title("Analizador Léxico y Sintáctico")
+
+
+
+        self.title("Compilador Metal Gear")
+        self.configure(fg_color='#2e2e2e')
         self.geometry("1250x750") 
+
+        
+
+        # Cargar la imagen de fondo
+        #self.background_image = Image.open("background.png")  # Asegúrate de poner la ruta correcta aquí
+        #self.background_photo = ImageTk.PhotoImage(self.background_image)
+
+        # Configurar un label como contenedor de la imagen de fondo
+        #self.background_label = tk.Label(self, image=self.background_photo)
+        #self.background_label.place(x=0, y=0, relwidth=1, relheight=1)
 
 # Frame para contener el cuadro de texto y los números de línea
         self.frame_texto = customtkinter.CTkFrame(self)
@@ -121,10 +137,13 @@ class App(customtkinter.CTk):
     def analizar_sintactico(self):
         texto_usuario = self.texto_entrada.get("1.0", "end-1c")
         resultado, ast, symbol_table, function_table = analizar_sintactico(texto_usuario)
-        ast_formated = translate_ast(ast)
         reset_lines()
         if not resultado.strip():
             resultado = "No se han detectado errores."
+            print("AST:")
+            print(ast)
+            ast_formated = translate_ast(ast)
+
             self.texto_resultado_sintactico.configure(state="normal")
             self.texto_resultado_sintactico.delete("1.0", "end")
             self.texto_resultado_sintactico.insert("1.0", resultado)
@@ -133,12 +152,24 @@ class App(customtkinter.CTk):
 
             self.texto_resultado_lexico.configure(state="normal")
             self.texto_resultado_lexico.delete("1.0", "end")
-            self.texto_resultado_lexico.insert("1.0", "Tabla de Símbolos de Variables:\n")
+            self.texto_resultado_lexico.insert("1.0", "Variables:\n")
+
             for variable, data in symbol_table.items():
-                self.texto_resultado_lexico.insert("end", f"{variable}: {data}\n")
+                self.texto_resultado_lexico.insert("end", f"{variable}:\n")
+                self.texto_resultado_lexico.insert("end", f"  Tipo: {data['type']}\n")
+                self.texto_resultado_lexico.insert("end", f"  Contenido: {data['value']}\n")
+                self.texto_resultado_lexico.insert("end", "\n")
+
+            self.texto_resultado_lexico.insert("end", "\nFunciones:\n")
+
 
             for function, data in function_table.items():
-                self.texto_resultado_lexico.insert("end", f"{function}: {data}\n")
+                self.texto_resultado_lexico.insert("end", f"{function}:\n")
+                self.texto_resultado_lexico.insert("end", f"  Parámetros: {data['parameters']}\n")
+                self.texto_resultado_lexico.insert("end", f"  Bloque:\n")
+                for statement in data['block']:
+                    self.texto_resultado_lexico.insert("end", f"    {statement['type']}\n")
+                self.texto_resultado_lexico.insert("end", "\n")
 
             self.texto_resultado_lexico.configure(state="disabled")
 
@@ -147,8 +178,10 @@ class App(customtkinter.CTk):
             self.texto_resultado_intermedio.insert("1.0", ast_formated)
             self.texto_resultado_intermedio.configure(state="disabled")
 
-
-            python_code = translate_to_python(ast)
+            optimized_ast = optimize_ast(ast, symbol_table)
+            print("OPTIMIZEDDD:")
+            print(optimized_ast)
+            python_code = translate_to_python(optimized_ast)
 
             self.texto_resultado_python.configure(state="normal")
             self.texto_resultado_python.delete("1.0", "end")
@@ -188,23 +221,56 @@ class App(customtkinter.CTk):
                 self.texto_entrada.delete("1.0", "end")
                 self.texto_entrada.insert("1.0", contenido)
                 self.texto_entrada.configure(state="normal")
+                
+    def custom_input(self, prompt):
+        # Crear el cuadro de diálogo para la entrada del usuario
+        dialog = customtkinter.CTkInputDialog(text=prompt, title="Entrada de usuario")
+        x_position = 600 
+        y_position = 300 
+        dialog.geometry(f"+{x_position}+{y_position}")
+
+        input_value = dialog.get_input()
+
+        try:
+            # Intentar convertir la entrada a un entero
+            return int(input_value)
+        except ValueError:
+            # Devolver el valor original si la conversión falla
+            return input_value
+
+
 
     def ejecutar_codigo(self):
         codigo = self.texto_resultado_python.get("1.0", "end-1c")
-        salida = io.StringIO()
-        sys.stdout = salida
+        
+        # Redirigir stdout y stderr a la consola de la GUI
+        old_stdout = sys.stdout
+        old_stderr = sys.stderr
+        sys.stdout = StdoutRedirector(self.texto_resultado_consola)
+        sys.stderr = StdoutRedirector(self.texto_resultado_consola)
+    
         try:
-            exec(codigo)
+            exec(codigo, {'input': lambda prompt='': self.custom_input(prompt)})
         except Exception as e:
-            salida.write(str(e))
+            print(str(e))  # Esto se mostrará en la consola de la GUI
         finally:
-            sys.stdout = sys.__stdout__
-        resultado = salida.getvalue()
-        self.texto_resultado_consola.configure(state="normal")
-        self.texto_resultado_consola.delete("1.0", "end")
-        self.texto_resultado_consola.insert("1.0", resultado)
-        self.texto_resultado_consola.configure(state="disabled")
+            # Restaurar stdout y stderr
+            sys.stdout = old_stdout
+            sys.stderr = old_stderr
 
+
+class StdoutRedirector(object):
+    def __init__(self, widget):
+        self.widget = widget
+
+    def write(self, string):
+        self.widget.configure(state='normal')
+        self.widget.insert('end', string)
+        self.widget.configure(state='disabled')
+        self.widget.see('end')  # Auto-scroll
+
+    def flush(self):
+        pass
 if __name__ == "__main__":
     app = App()
     app.mainloop()

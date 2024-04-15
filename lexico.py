@@ -14,11 +14,12 @@ reserved = {
     'EVADE': 'ELSE'
 }
 
+
 tokens = list(reserved.values()) + [
     'ID', 'NUMBER', 'PLUS', 'MINUS', 'TIMES', 'DIVIDE',
     'ASSIGN', 'NE', 'LT', 'LTE', 'GT', 'GTE', 'EQ',
     'LPARENT', 'RPARENT', 'COMMA', 'SEMICOLON',
-    'DOT', 'STRING','COMMENT', 'LBRACE', 'RBRACE'
+    'DOT', 'STRING','COMMENT', 'LBRACE', 'RBRACE', 'NEQ'
 ]
 
 # Ignorar espacios y tabulaciones
@@ -35,6 +36,7 @@ t_LT = r'<'
 t_LTE = r'<='
 t_GT = r'>'
 t_GTE = r'>='
+t_NEQ = r'!='
 t_EQ = r'=='
 t_LPARENT = r'\('
 t_RPARENT = r'\)'
@@ -55,6 +57,7 @@ def t_ID(t):
     r'[a-zA-Z_][a-zA-Z0-9_]*'
     t.type = reserved.get(t.value.upper(), 'ID')  
     return t
+
 
 def t_NUMBER(t):
     r'\d+(\.\d+)?'

@@ -4,6 +4,7 @@ def translate_to_python(ast):
         python_code += translate_statement(node) + "\n"
     return python_code.strip()
 
+
 def translate_expression(expr):
     if expr['type'] == 'binary_operation':
         left = translate_expression(expr['left'])
@@ -79,6 +80,8 @@ def translate_block(block, indent_level=1):
     return python_code
 
 def translate_statement(statement, indent_level=1):
+    if statement['type'] == 'ignore':
+        return ''
     if statement['type'] == 'var_declaration':
         if statement['value']['type'] == 'function_call':
             value = translate_function_call(statement['value'])
@@ -129,11 +132,15 @@ def translate_statement(statement, indent_level=1):
             return f"for {variable} in range({start}, {end}):\n{body}"
 
     elif statement['type'] == 'print':
+        #return f"print({translate_expression(statement['value'])})"
         return f"print({translate_print_arguments(statement['value'])})"
 
     elif statement['type'] == 'function_call':
         # funciones directas como statements
         return translate_function_call(statement)
+    
+    elif statement['type'] == 'read':
+        return f"{statement['variable']} = input()"
 
     elif statement['type'] == 'return':
         return f"return {translate_expression(statement['value'])}"
@@ -152,8 +159,12 @@ def translate_print_arguments(args):
     elif args['type'] == 'string':
         return f'"{args["value"]}"'
     else:
-        return translate_expression(args)
-    
+        # Si es una variable y no es una cadena, aplicar str()
+        if args['type'] == 'variable' and args['value']['type'] != 'string':
+            return f"str({translate_expression(args)})"
+        else:
+            return translate_expression(args)
+   
 def translate_ast(ast, indent_level=0):
     result = ""
     indent = "  " * indent_level
@@ -176,6 +187,7 @@ def translate_ast(ast, indent_level=0):
             result += f"{indent}  value:\n"
             result += translate_ast([node['value']], indent_level + 2)
         elif node['type'] == 'binary_operation':
+            print("QUEEEEE PASSSSAAAA" + str(node['left']))
             result += f"{indent}binary_operation:\n"
             result += f"{indent}  operator: {node['operator']}\n"
             result += f"{indent}  left:\n"

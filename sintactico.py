@@ -8,6 +8,7 @@ precedence = (
     ('right', 'UMINUS'),
 )
 
+
 # diccionario para almacenar las variables
 symbol_table = {}
 symbol_table_aux = {}
@@ -88,6 +89,10 @@ def p_statement_for(p):
 def p_statement_return(p):
     'statement : RETURN expression SEMICOLON'
     p[0] = {'type': 'return', 'value': p[2]}
+
+def p_statement_read(p):
+    'statement : READ LPARENT ID RPARENT SEMICOLON'
+    p[0] = {'type': 'read', 'variable': p[3]}
 
 def p_block(p):
     '''block : LBRACE statements RBRACE
@@ -208,7 +213,8 @@ def p_expression_comparison(p):
                   | expression GT expression
                   | expression GTE expression
                   | expression NE expression
-                  | expression EQ expression'''
+                  | expression EQ expression
+                  | expression NEQ expression'''
     print("EOOOO")
     print(p[1])
     print(p[3])
@@ -324,6 +330,7 @@ def analizar_sintactico(data):
     first_analysis(data)
     reset_lines()
     ast = second_analysis(data)
+    print(ast)
     st = symbol_table.copy()
     ft = function_table.copy()
     symbol_table_aux.clear()
